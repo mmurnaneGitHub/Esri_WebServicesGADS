@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Check Web Service JSON Content</title>
+  <link rel="shortcut icon" href="shortcut.ico">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <link rel="stylesheet" href="https://js.arcgis.com/3.30/esri/css/esri.css">
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/dojo/1.8/dijit/themes/claro/claro.css" />
+  <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/dojo/1.9.1/dijit/themes/tundra/tundra.css" media="screen">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+  <style>
+    body{
+      font-family: "Arial Unicode MS, Arial, sans-serif";
+    }
+    #content {
+      width: 800px; height: 350px; padding: 5px; overflow: auto;
+      border: solid 2px #AAAAAA; background-color: #FFFFFF;
+      -moz-border-radius: 5px; -webkit-border-radius: 5px; -o-border-radius: 5px; border-radius: 5px;
+      -moz-box-shadow: 0 0 0.5em black; -webkit-box-shadow: 0 0 0.5em black; -o-box-shadow: 0 0 0.5em black; box-shadow: 0 0 0.5em black;
+    }
+    .failure { color: red; }
+    #status { font-size: 12px; }
+  </style>
+
+  <script src="https://js.arcgis.com/3.30/"></script>
+  <script>
+    require([
+        "dojo/dom",
+        "dojo/on",
+        "dojo/dom-class",
+        "dojo/_base/json",
+        "esri/config",
+        "esri/request",
+        "dijit/TitlePane",
+        "dojo/ready",
+        "dojo/domReady!"
+      ],
+      function(
+        dom,
+        on,
+        domClass,
+        dojoJson,
+        esriConfig,
+        esriRequest,
+        TitlePane,
+        ready
+      ) {
+
+        //Original - https://developers.arcgis.com/javascript/3/sandbox/sandbox.html?sample=data_requestJson
+        
+        // Use CORS
+        //esriConfig.defaults.io.corsEnabledServers.push("earthquake.usgs.gov"); // supports CORS
+        esriConfig.defaults.io.corsEnabledServers.push("gis.cityoftacoma.org"); // supports CORS
+
+        // Use proxy if the server doesn't support CORS
+         //esriConfig.defaults.io.proxyUrl = "/website/labels/proxy.ashx"; //websites must be in config
+         //esriConfig.defaults.io.proxyUrl = "/website/HistoricMap/proxy/proxy.ashx"; //websites must be in config
+         esriConfig.defaults.io.proxyUrl = "/website/DART/StaffMap/proxy/proxy.ashx"; //websites must be in config
+
+/*
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=036f9a988b29451699ddb5053a81bd96
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=1c56cbfc3d7c45059f0fd209a4f5a000
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=4810cfe683534e88b6cc3555ef4367d9
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=4f9e9d2d93d24e77b1ef6d742be6e485
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=5a1898d5a24849ccb524fe2212e1fdec
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=64522efe58c24fac9831f7b3ee5c83f0
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=671a781fdbef42d889b80b2f48874148
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=747fc7c9fcf640c8b42e4c73c9f2e454
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=90f97f36880b4e31903d15bf557203de
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=ae8b56c959994847b18fe2f59f9e0663
+http://tacoma.maps.arcgis.com/home/webmap/viewer.html?webmap=e29c297dd5e84c1c8e7e858a125f5688
+*/
+
+/*
+Supports Pagination: false  - http://support.esri.com/en/technical-article/000012579
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/7/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/8/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/15/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+
+Not HTTPS: (need to run from http://geobase-dbnewer/website/test/QueryJSON.html NOT https://wspdsmap.cityoftacoma.org/website/test/QueryJSON.html)
+                        'http://esgis01/arcgis/rest/services/Base/SurfacewaterNetwork/MapServer?f=json',
+                        'http://esgis01/arcgis/rest/services/Base/WastewaterNetwork/MapServer?f=json',
+*/
+
+
+//include add data button & basemap urls
+
+        //Web Service json urls (pjson - pretty)
+        //Unexpected token < - proxy problem (need server in config)
+        //https://tacoma.maps.arcgis.com/sharing/rest/content/items/04a559793bdf43998c4e8f5f3b8a4e4d/webmap?f=json
+        var theURLs = [  
+                        'https://esgis01/arcgis/rest/services/Base/SurfacewaterNetwork/MapServer?f=json',
+                        'https://esgis01/arcgis/rest/services/Base/WastewaterNetwork/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/info/healthcheck?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/info/healthcheck?f=pjson',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/04a559793bdf43998c4e8f5f3b8a4e4d?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/35fde3a26d8b47f288cf7f81a915c09c?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/3a1add3b4de947f2bf1f19b83a8c2266?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/4bf2dfbb4aa642cbad278f3192387612?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/6e03e8c26aad4b9c92a87c1063ddb0e3?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/73ea9b33b89f42128c99628c6bf49d9e?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/76f1a118a00f4587bd41d44ed6cb3950?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/7865507a1def49638bd635defece9378?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/c616cb270a634fa48d51e3333fdbc67d?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/ca96fdd89a4d4a19a2a463fefaec7a6b?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/e547ab1a58804d19acd9a0059fb6a5ae?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/036f9a988b29451699ddb5053a81bd96?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/1c56cbfc3d7c45059f0fd209a4f5a000?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/4810cfe683534e88b6cc3555ef4367d9?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/4f9e9d2d93d24e77b1ef6d742be6e485?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/5a1898d5a24849ccb524fe2212e1fdec?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/64522efe58c24fac9831f7b3ee5c83f0?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/747fc7c9fcf640c8b42e4c73c9f2e454?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/90f97f36880b4e31903d15bf557203de?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/ae8b56c959994847b18fe2f59f9e0663?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/e29c297dd5e84c1c8e7e858a125f5688?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/599d4f7d98c2419bb739b974c9443590?f=json',
+                        'https://tacoma.maps.arcgis.com/sharing/rest/content/items/db7fabf8b26a45c98140f32e346fff12?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/Accela_AGIS/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/Accela_Parking/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/Accela_XAPO/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/CompPlan_LUD_Zoning_STAFF/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/DARTinfra_STAFF/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/DARTparcels_STAFF/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/DARTpower_STAFF/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/DARTquery_WAB_STAFF/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/FLUM_Rezones/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/MailingLabels/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/OpenSpace/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/SeaLevelRise_10_3_MM_AS/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP016_Pedestrian/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP018_Bicycle/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP019_Transit/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP022_Freight/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP023_Auto/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/PDS/TMP024_AllModes/MapServer?f=json',
+                        'https://arcgisprod02.tacoma.lcl/arcgis/rest/services/Utilities/Geometry/GeometryServer?f=json',
+                        'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Parking/AllParkingFeatures/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/ITD/Capital_Projects/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Environ_Assets/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Environ_Hazards/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Future/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_General/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Parks/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Planned/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Rezones/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Transportation/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/CompPlan_Urban/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Locators/AddressStreetParcel/GeocodeServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Locators/PierceParcels/GeocodeServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Locators/TacomaAddresses/GeocodeServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Locators/TacomaStreets/GeocodeServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTcommunity/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTenvironmental/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTgeneral/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTinfra_PUBLIC/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTlabels/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTparcels_PUBLIC/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTplat/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/0/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/1/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/2/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/3/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/4/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/5/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/6/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/9/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/10/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/11/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/12/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/13/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/14/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/16/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/17/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/18/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/19/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/20/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/21/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTquery_WAB_PUBLIC/MapServer/22/query?where=1%3D1&geometryType=esriGeometryEnvelope&spatialRel=esriSpatialRelIntersects&outFields=*&returnGeometry=true&returnTrueCurves=false&returnIdsOnly=false&returnCountOnly=false&returnZ=false&returnM=false&returnDistinctValues=false&resultRecordCount=1&returnExtentsOnly=false&f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTsewer/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/DARTzoning/MapServer?f=pjson',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/H_Inventory/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PDS/H_Register/MapServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/PW/RPP/MapServer?f=pjson', 
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Utilities/Geometry/GeometryServer?f=json',
+                        'https://services3.arcgis.com/SCwJH1pD8WSn5T5y/arcgis/rest/services/Tacoma_Councilmanic_District_Query_Layer/FeatureServer?f=json',
+                        'https://services3.arcgis.com/SCwJH1pD8WSn5T5y/arcgis/rest/services/Tacoma_Neighborhood_Council_Districts/FeatureServer?f=json',
+                        'https://gis.cityoftacoma.org/arcgis/rest/services/Utilities/PrintingTools/GPServer?f=pjson',
+                        'https://fortress.wa.gov/ecy/gisprod/arcgis/rest/services/TCP/DirtAlert/MapServer?f=json'
+                        ];
+ 
+        var goodURLs = 0; //success counter
+        var badURLs = 0;  //fail counter
+        var successText = "";
+        var failText = "";
+        
+        dom.byId("url").value = "https://gis.cityoftacoma.org/arcgis/rest/services/ITD/_MITCH_CALL_ME_/MapServer?f=json"; //test url
+        dom.byId("content").value = "";
+
+        on(dom.byId("submitRequest"), "click", getContent);   //handle the Go button's click event
+        on(dom.byId("submitRequestTests"), "click", testWebService);  //handle the Run Tests... button's click event
+
+        function getContent(){
+          var contentDiv = dom.byId("content");
+          contentDiv.value = "";
+          dom.byId("status").innerHTML = "Downloading...";
+
+          var requestHandle = esriRequest({
+            "url": dom.byId("url").value,
+            handleAs: "json"
+          });
+          requestHandle.then(requestSucceeded, requestFailed);
+        }
+
+        function requestSucceeded(response){
+          console.error('Response: ', response);
+          dom.byId("status").innerHTML = "<br>SUCCESS";
+          dom.byId("content").value = "SUCCESS - see Console for details.";
+        }
+        
+        function requestFailed(error){
+          console.error('Failure: ', error);
+          dom.byId("status").innerHTML = "<br>FAILURE";
+          dom.byId("content").value = error.message;
+        }
+
+        //CEDD TESTS -----------------------------------------------------------
+        function testWebService(){
+         document.getElementById('loading').style.display = 'block';//show loading gif
+          //reset variables
+          goodURLs = 0;
+          badURLs = 0;
+          successText = "";
+          failText = "";          
+          dom.byId("CEDD_Test_Success").innerHTML = "";
+          dom.byId("successDetails").innerHTML = "";
+          dom.byId("CEDD_Test_Fail").innerHTML = "";
+          
+         //Loop through array of urls
+         theURLs.forEach(function(current_value) {
+          var url = current_value;
+          dom.byId("CEDD_Test_Success").innerHTML = "<i class='fa fa-cog fa-spin' style='font-size:36px'></i> Waiting for test results...";  
+          var requestHandle = esriRequest({
+            "url": url,
+            handleAs: "json"
+          });
+          requestHandle.then(requestSucceeded_CEDD, requestFailed_CEDD);  //Send json request to web service
+         });  //end loop
+          
+        }
+
+        function requestSucceeded_CEDD(response){
+          //console.error('Response: ', response);  //for more details
+          goodURLs = goodURLs + 1; //increment counter
+          //successText +=  " - " + response.serviceDescription + "<br>";
+          successText +=  "<ul><li>" + response.serviceDescription + "</li></ul><br>";
+          dom.byId("CEDD_Test_Success").innerHTML = "<b>" + goodURLs + "</b>" + " WEB SERVICES TESTED SUCCESSFULLY <br>&nbsp;";
+          dom.byId("successDetails").innerHTML = successText;
+          if (goodURLs == theURLs.length){
+            document.getElementById('loading').style.display = 'none';//hide loading gif
+           };         
+
+        }
+        
+        function requestFailed_CEDD(error){
+          console.error('Failure: ', error);
+          badURLs++; //increment counter
+          failText +=  "<br> - " + error.message + "<br>&nbsp;"; 
+          dom.byId("CEDD_Test_Fail").innerHTML = "<br>&nbsp;<br><b>" + badURLs + " WEB SERVICE FAILURE(S)</b> (see Console for more details)" + failText;
+        }
+
+         ready(function(){
+          // This function won't run until the DOM has loaded and other modules that register have run.
+          var tp = new TitlePane({title:"<b>Successful Web Service Details</b>", open: false, content: "<span id='successDetails'></span>"});
+          dom.byId("successResults").appendChild(tp.domNode);
+          tp.startup();  //add collapsed panel to hold success results
+          dom.byId("CEDD_Total_Services").innerHTML = "Testing " + theURLs.length + " web services ... <br>&nbsp;";
+          testWebService();    //run the tests once page is ready
+          // 
+        });
+
+    });
+  </script>
+</head>
+<body class="claro" style="font-family: 'Lato', sans-serif;">
+  <h2>Test Results For Web Services Used By GADS applications:</h2>
+
+  <div id="CEDD_Total_Services"></div>
+  <span id='loading'><img src='loading2.gif'></span>
+  <div id="CEDD_Test_Success"></div>
+  <div id="successResults"></div>
+  <div id="CEDD_Test_Fail" style="background-color: yellow;"></div>
+
+  <div>
+   <br>&nbsp;
+   <input id="submitRequestTests" type="button" value="Rerun CEDD Web Service Tests" />
+   <br>&nbsp;
+  </div>
+  
+  <div>
+  &nbsp;&nbsp;&nbsp;<a href="http://ws-intraweb2/SmokeTest/" target="_blank">ITD Smoke Test Application</a>
+  </div>
+  
+
+<hr style="height: 12px; border: 0; box-shadow: inset 0 12px 12px -12px rgba(0, 0, 0, 0.5);">
+ <div>
+  <p>Check individual web service:
+    <input type="text" id="url" size="100"/>
+    <input id="submitRequest" type="button" value="GO" />
+    <span id="status"></span>
+  </p>
+  <h2>Individual Web Service Result:</h2>
+  <textarea id="content"></textarea>
+ </div>
+
+</body>
+</html>
